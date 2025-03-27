@@ -1,0 +1,121 @@
+import pandas as pd
+
+  
+  
+    
+   
+
+data = [
+    (101, "2024-03-01", "Absent"),
+    (101, "2024-03-02", "Absent"),
+    (101, "2024-03-03", "Absent"),
+    (101, "2024-03-04", "Absent"),
+    (101, "2024-03-05", "Present"),
+    (102, "2024-03-02", "Absent"),
+    (102, "2024-03-03", "Absent"),
+    (102, "2024-03-04", "Absent"),
+    (102, "2024-03-05", "Absent"),
+    (103, "2024-03-05", "Absent"),
+    (103, "2024-03-06", "Absent"),
+    (103, "2024-03-07", "Absent"),
+    (103, "2024-03-08", "Absent"),
+    (103, "2024-03-09", "Absent"),
+    (104, "2024-03-01", "Present"),
+    (104, "2024-03-02", "Present"),
+    (104, "2024-03-03", "Absent"),
+    (104, "2024-03-04", "Present"),
+    (104, "2024-03-05", "Present"),
+]
+
+df = pd.DataFrame(data, columns=["student_id", "attendance_date", "status"])
+
+
+df["attendance_date"] = pd.to_datetime(df["attendance_date"])
+
+
+def find_absence_streaks(df):
+    result = []
+    
+    for student_id, group in df.groupby("student_id"):
+        group = group.sort_values("attendance_date")
+        absences = group[group["status"] == "Absent"]
+        
+        if absences.empty:
+            continue
+        
+        streak_start = None
+        prev_date = None
+        
+        for _, row in absences.iterrows():
+            if streak_start is None:
+                streak_start = row["attendance_date"]
+            
+            if prev_date is not None and (row["attendance_date"] - prev_date).days > 1:
+                if (prev_date - streak_start).days + 1 > 3:
+                    result.append((student_id, streak_start.date(), prev_date.date(), (prev_date - streak_start).days + 1))
+                streak_start = row["attendance_date"]
+            
+            prev_date = row["attendance_date"]
+        
+      
+        if streak_start is not None and (prev_date - streak_start).days + 1 > 3:
+            result.append((student_id, streak_start.date(), prev_date.date(), (prev_date - streak_start).days + 1))
+    
+    return result
+
+
+streaks = find_absence_streaks(df)
+
+
+output_df = pd.DataFrame(streaks, columns=["student_id", "absence_start_date", "absence_end_date", "total_absent_days"])
+
+
+
+
+
+import pandas as pd
+import re
+
+
+attendance_data = [
+    (101, "01-03-2024", "04-03-2024", 4),
+    (102, "02-03-2024", "05-03-2024", 4),
+    (103, "05-03-2024", "09-03-2024", 5),
+]
+
+attendance_df = pd.DataFrame(attendance_data, columns=["student_id", "absence_start_date", "absence_end_date", "total_absent_days"])
+
+students_data = [
+    (101, "Alice Johnson", "alice_parent@example.com"),
+    (102, "Bob Smith", "bob_parent@example.com"),
+    (103, "Charlie Brown", "invalid_email.com"),
+    (104, "David Lee", "invalid_email.com"),
+    (105, "Eva White", "eva_white@example.com"),
+]
+
+students_df = pd.DataFrame(students_data, columns=["student_id", "student_name", "parent_email"])
+
+
+def is_valid_email(email):
+    email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(email_pattern, email))
+
+merged_df = attendance_df.merge(students_df, on="student_id", how="left")
+
+
+
+merged_df["email"] = merged_df["parent_email"].apply(lambda x: x if is_valid_email(x) else None)
+
+
+def generate_message(row):
+    if pd.notna(row["email"]):
+        return f"Dear Parent, your child {row['student_name']} was absent from {row['absence_start_date']} to {row['absence_end_date']} for {row['total_absent_days']} days. Please ensure their attendance improves."
+    return None
+
+merged_df["msg"] = merged_df.apply(generate_message, axis=1)
+
+
+final_df = merged_df[["student_id", "absence_start_date", "absence_end_date", "total_absent_days", "email", "msg"]]
+
+
+print(final_df)
